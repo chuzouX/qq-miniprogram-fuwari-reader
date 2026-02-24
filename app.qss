@@ -1,0 +1,52 @@
+page {
+  /* 默认明亮模式变量 */
+  --bg-image: url('https://pic.chuzoux.top/pic?img=v');
+  --container-bg: rgba(255, 255, 255, 0.9);
+  --text-main: #1a1a1a;
+  --text-sub: #666;
+  --border-color: #f0f0f0;
+  --card-shadow: rgba(0,0,0,0.1);
+  --link-color: #0052d9;
+  --code-bg: #f6f8fa;
+
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  color: var(--text-main);
+}
+
+.dark-mode {
+  /* 夜间模式变量 */
+  --container-bg: rgba(30, 30, 30, 0.85);
+  --text-main: #e0e0e0;
+  --text-sub: #aaa;
+  --border-color: #333;
+  --card-shadow: rgba(0,0,0,0.3);
+  --link-color: #4d94ff;
+  --code-bg: #2d2d2d;
+}
+
+.dark-mode::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4); /* 给背景图加一层暗色遮罩 */
+  z-index: -1;
+  pointer-events: none;
+}
+
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 200rpx 0;
+  box-sizing: border-box;
+}

@@ -1,0 +1,187 @@
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.container {
+  padding: 30rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 头部样式 */
+.header {
+  background: var(--container-bg);
+  padding: 40rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx var(--card-shadow);
+  margin-bottom: 30rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  margin-bottom: 24rpx;
+  border: 6rpx solid var(--link-color);
+}
+
+.header-info {
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.title {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: var(--text-main);
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.subtitle {
+  font-size: 26rpx;
+  color: var(--text-sub);
+  line-height: 1.6;
+  display: block;
+  padding: 0 20rpx;
+}
+
+/* 社交链接 */
+.social-links {
+  display: flex;
+  gap: 40rpx;
+}
+
+.social-item {
+  background: var(--border-color);
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  box-shadow: 0 2rpx 10rpx var(--card-shadow);
+}
+
+.social-icon {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.dark-mode .social-icon {
+  filter: brightness(0) invert(1); /* 在暗色模式下将图标变为白色 */
+  opacity: 0.9;
+}
+
+/* 搜索框样式 */
+.search-bar {
+  background: var(--container-bg);
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx var(--card-shadow);
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  margin-left: 20rpx;
+  color: var(--text-main);
+}
+
+.clear-icon {
+  padding: 10rpx;
+}
+
+/* 列表样式 */
+.article-list {
+  background: var(--container-bg);
+  border-radius: 24rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 20rpx var(--card-shadow);
+  margin-bottom: 40rpx;
+}
+
+.list-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: var(--text-main);
+  margin-bottom: 30rpx;
+  padding-left: 20rpx;
+  border-left: 8rpx solid var(--link-color);
+}
+
+.loading-status, .empty-status {
+  text-align: center;
+  padding: 60rpx;
+  color: var(--text-sub);
+  font-size: 28rpx;
+}
+
+.article-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.article-item:last-child {
+  border-bottom: none;
+}
+
+.article-info {
+  flex: 1;
+  padding-right: 20rpx;
+}
+
+.article-name {
+  font-size: 30rpx;
+  color: var(--text-main);
+  display: block;
+  margin-bottom: 8rpx;
+  line-height: 1.4;
+}
+
+.article-date {
+  font-size: 24rpx;
+  color: var(--text-sub);
+}
+
+.copy-tag {
+  font-size: 22rpx;
+  color: var(--link-color);
+  background: var(--border-color);
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  white-space: nowrap;
+}
+
+/* 底部样式 */
+.footer {
+  text-align: center;
+  margin-top: 10rpx;
+}
+
+.copy-btn {
+  width: 100% !important;
+  height: 90rpx;
+  line-height: 90rpx;
+  background-color: var(--link-color) !important;
+  border-radius: 45rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  margin-bottom: 24rpx;
+}
+
+.hint {
+  font-size: 24rpx;
+  color: var(--text-sub);
+}
