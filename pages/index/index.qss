@@ -104,9 +104,11 @@ page {
 .article-list {
   background: var(--container-bg);
   border-radius: 24rpx;
-  padding: 30rpx;
+  padding: 30rpx 0;
   box-shadow: 0 4rpx 20rpx var(--card-shadow);
   margin-bottom: 40rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .list-title {
@@ -115,6 +117,7 @@ page {
   color: var(--text-main);
   margin-bottom: 30rpx;
   padding-left: 20rpx;
+  margin-left: 30rpx;
   border-left: 8rpx solid var(--link-color);
 }
 
@@ -129,8 +132,10 @@ page {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 30rpx 0;
+  padding: 30rpx 30rpx;
   border-bottom: 1rpx solid var(--border-color);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .article-item:last-child {
@@ -140,14 +145,25 @@ page {
 .article-info {
   flex: 1;
   padding-right: 20rpx;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* 关键：防止 flex 子项溢出 */
 }
 
 .article-name {
   font-size: 30rpx;
   color: var(--text-main);
-  display: block;
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
   line-height: 1.4;
+  word-break: break-all;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3; /* 限制最大行数为 3 行，超出显示省略号 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .article-date {
@@ -183,5 +199,36 @@ page {
 
 .hint {
   font-size: 24rpx;
+  color: var(--text-sub);
+}
+
+/* 分页控件 */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30rpx;
+  padding: 0 30rpx;
+}
+
+.page-btn {
+  font-size: 28rpx;
+  color: var(--text-main);
+  background: var(--container-bg);
+  border: 1rpx solid var(--border-color);
+  padding: 10rpx 30rpx;
+  border-radius: 8rpx;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.page-btn[disabled] {
+  color: var(--text-sub);
+  background: var(--bg-color);
+  opacity: 0.6;
+}
+
+.page-info {
+  font-size: 26rpx;
   color: var(--text-sub);
 }

@@ -42,6 +42,7 @@
   font-weight: bold;
   color: var(--text-main);
   margin-left: 10rpx;
+  line-height: 48rpx; /* 增加行高，防止垂直对齐偏差导致的裁剪 */
 }
 
 .article-container {
@@ -170,6 +171,15 @@
   box-shadow: 0 6rpx 16rpx var(--card-shadow);
 }
 
+.article-content .github-card:active {
+  opacity: 0.7;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark-mode .article-content .github-card:active {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
 .article-content .github-card-title {
   font-size: 30rpx;
   font-weight: 600;
@@ -181,29 +191,82 @@
   color: var(--link-color);
   font-size: 26rpx;
   word-break: break-all;
+  display: block;
 }
 
-/* Markdown 风格代码块重构 */
+/* 原生文本段落样式 */
+.text-para {
+  margin: 0 0 36rpx 0;
+  font-size: 32rpx;
+  line-height: 1.6;
+  color: var(--text-main);
+  word-wrap: break-word;
+  letter-spacing: 2rpx;
+  text-align: justify;
+}
+
+.text-link {
+  color: var(--link-color);
+  padding: 0 2rpx;
+  text-decoration: none;
+}
+
+.text-bold {
+  font-weight: bold;
+}
+
+.text-italic {
+  font-style: italic;
+}
+
+.text-code {
+  padding: 6rpx 12rpx;
+  margin: 0 6rpx;
+  font-size: 26rpx;
+  background-color: #f6f8fa;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(27, 31, 35, 0.12);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  color: #24292e;
+}
+
+.dark-mode .text-code {
+  background-color: #0d1117;
+  color: #c9d1d9;
+  border-color: #30363d;
+}
+
+/* 移除下划线样式覆盖 */
+.dark-mode .text-link {
+  /* border-bottom-color: rgba(77, 148, 255, 0.6); */
+}
 .article-content .md-pre {
+  margin: 32rpx 0;
+  background-color: #f6f8fa; /* 浅色模式 GitHub 风格 */
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(27, 31, 35, 0.15);
+  position: relative;
+  display: block !important;
+  visibility: visible !important;
+  width: 100%; /* 确保占满父容器 */
+  box-sizing: border-box; /* 包含 padding 和 border */
+}
+
+.article-content .md-pre-scroll {
   padding: 24rpx 30rpx;
+  width: 100%; /* 限制宽度，确保滚动生效 */
+  box-sizing: border-box; /* 包含 padding */
   overflow-x: auto;
   font-size: 26rpx;
   line-height: 1.6;
-  background-color: #f6f8fa; /* 浅色模式 GitHub 风格 */
   color: #24292e;
-  border-radius: 12rpx;
-  margin: 32rpx 0;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
   white-space: pre; /* 块级代码通常保持原样，允许横向滚动 */
   word-wrap: normal;
   word-break: normal;
-  display: block !important;
-  visibility: visible !important;
-  border: 1rpx solid rgba(27, 31, 35, 0.15);
-  position: relative;
 }
 
-.article-content .md-pre .md-code {
+.article-content .md-pre-scroll .md-code {
   padding: 0;
   margin: 0;
   background-color: transparent;
@@ -218,9 +281,12 @@
 /* 夜间模式代码块适配 */
 .dark-mode .article-content .md-pre {
   background-color: #0d1117; /* 更深的 GitHub Dark 背景 */
-  color: #c9d1d9;
   border-color: #30363d;
   box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.3);
+}
+
+.dark-mode .article-content .md-pre-scroll {
+  color: #c9d1d9;
 }
 
 .article-content .md-code-inline {
@@ -239,7 +305,6 @@
   color: var(--link-color);
   text-decoration: none;
   padding: 0 2rpx;
-  border-bottom: 2rpx solid rgba(0, 82, 217, 0.35);
   word-break: break-all;
 }
 
@@ -247,7 +312,6 @@
   color: var(--link-color);
   text-decoration: none;
   padding: 0 2rpx;
-  border-bottom: 2rpx solid rgba(0, 82, 217, 0.35);
   word-break: break-all;
   display: inline;
 }
@@ -258,37 +322,84 @@
   border-color: #30363d;
 }
 
+/* 移除下划线样式覆盖 */
 .dark-mode .article-content .md-link {
-  border-bottom-color: rgba(77, 148, 255, 0.6);
+  /* border-bottom-color: rgba(77, 148, 255, 0.6); */
 }
 
 .dark-mode .article-content a {
-  border-bottom-color: rgba(77, 148, 255, 0.6);
+  /* border-bottom-color: rgba(77, 148, 255, 0.6); */
 }
 
 .article-content .md-copy-btn {
   position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  padding: 6rpx 14rpx;
-  font-size: 24rpx;
+  top: 12rpx;
+  right: 12rpx;
+  width: 48rpx;
+  height: 48rpx;
   border-radius: 8rpx;
-  background-color: rgba(0, 0, 0, 0.06);
-  color: var(--text-main);
-  border: 1rpx solid rgba(27, 31, 35, 0.12);
-  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.9);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'%3E%3C/path%3E%3C/svg%3E");
+  background-size: 32rpx 32rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 1rpx solid rgba(27, 31, 35, 0.15);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  display: block;
+  z-index: 10;
+}
+
+.article-content .md-pre:hover .md-copy-btn,
+.article-content .md-pre:active .md-copy-btn {
+  opacity: 1;
 }
 
 .dark-mode .article-content .md-copy-btn {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #c9d1d9;
-  border-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(30, 30, 30, 0.9);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'%3E%3C/path%3E%3C/svg%3E");
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 
-.article-content ul, .article-content ol {
-  padding-left: 2em;
-  margin-bottom: 32rpx;
+/* 列表样式 */
+.list-container {
+  margin: 0 0 32rpx 0;
+}
+
+.list-item {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  margin-bottom: 12rpx;
+  line-height: 1.6;
+  font-size: 32rpx;
+  color: var(--text-main);
+}
+
+.list-bullet {
+  margin-right: 16rpx;
+  font-size: 16rpx;
+  color: var(--text-sub);
+  flex-shrink: 0;
+  width: 32rpx;
+  text-align: center;
+  align-self: flex-start;
+  padding-top: 10rpx; /* 调整圆点垂直位置 */
+}
+
+.list-number {
+  margin-right: 16rpx;
+  font-size: 32rpx;
+  color: var(--text-main);
+  flex-shrink: 0;
+  min-width: 32rpx;
+}
+
+.list-content {
+  flex: 1;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .article-content img, .article-img {

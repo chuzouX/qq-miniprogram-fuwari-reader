@@ -34,17 +34,24 @@
     <view class="list-title">{{searchQuery ? '搜索结果' : '最新文章'}}</view>
     
     <view wx:if="{{loading}}" class="loading-status">加载中...</view>
-    <view wx:elif="{{filteredArticles.length === 0}}" class="empty-status">未找到相关文章</view>
+    <view wx:elif="{{displayArticles.length === 0}}" class="empty-status">未找到相关文章</view>
     
     <block wx:else>
-      <view class="article-item" wx:for="{{filteredArticles}}" wx:key="link" bindtap="goToArticle" data-index="{{index}}">
+      <view class="article-item" wx:for="{{displayArticles}}" wx:key="link" bindtap="goToArticle" data-index="{{index}}">
         <view class="article-info">
           <text class="article-name">{{item.title}}</text>
           <text class="article-date">{{item.date}}</text>
         </view>
-        <view class="copy-tag">复制链接</view>
+        <view class="copy-tag" catchtap="copyLinkFromList" data-index="{{index}}">复制链接</view>
       </view>
     </block>
+
+    <!-- 分页控件 -->
+    <view class="pagination" wx:if="{{!loading && totalPages > 1}}">
+      <button class="page-btn" disabled="{{currentPage === 1}}" bindtap="prevPage">上一页</button>
+      <text class="page-info">{{currentPage}} / {{totalPages}}</text>
+      <button class="page-btn" disabled="{{currentPage === totalPages}}" bindtap="nextPage">下一页</button>
+    </view>
   </view>
 
   <!-- 底部操作 -->

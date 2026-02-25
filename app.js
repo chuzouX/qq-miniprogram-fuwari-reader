@@ -1,4 +1,6 @@
 // app.js
+require('./utils/umami.js');
+
 App({
   onLaunch: function () {
     this.checkTheme();
@@ -7,13 +9,30 @@ App({
   getSystemInfo: function() {
     try {
       const info = qq.getSystemInfoSync();
+      const menuButtonInfo = qq.getMenuButtonBoundingClientRect();
+      
       if (info) {
         this.globalData.statusBarHeight = info.statusBarHeight || 20;
-        const system = info.system || '';
-        this.globalData.navBarHeight = system.indexOf('iOS') > -1 ? 44 : 48;
+        
+        let navBarHeight = 0;
+        if (menuButtonInfo) {
+          // 导航栏高度 = (胶囊按钮上边距 - 状态栏高度) * 2 + 胶囊按钮高度
+          const gap = menuButtonInfo.top - this.globalData.statusBarHeight;
+          navBarHeight = gap * 2 + menuButtonInfo.height;
+        }
+        
+        if (!navBarHeight) {
+          const system = info.system || '';
+          navBarHeight = system.indexOf('iOS') > -1 ? 44 : 48;
+        }
+        
+        this.globalData.navBarHeight = navBarHeight;
       }
     } catch (e) {
       console.error('获取系统信息失败', e);
+      // 兜底策略
+      this.globalData.statusBarHeight = 20;
+      this.globalData.navBarHeight = 44;
     }
   },
   checkTheme: function() {

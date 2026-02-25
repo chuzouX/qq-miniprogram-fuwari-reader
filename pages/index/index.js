@@ -1,11 +1,16 @@
+const { trackEvent } = require('../../utils/umami.js');
+
 Page({
   data: {
-    articles: [],
-    filteredArticles: [],
+    allArticles: [],
+    displayArticles: [],
     searchQuery: "",
     loading: true,
     blogUrl: "https://chuzoux.top",
-    isDarkMode: false
+    isDarkMode: false,
+    currentPage: 1,
+    pageSize: 10,
+    totalPages: 1
   },
 
   rawXml: "",
@@ -35,11 +40,12 @@ Page({
         if (res.statusCode === 200) {
           that.rawXml = res.data;
           const articles = that.parseRSSList(res.data);
+          
           that.setData({
-            articles: articles,
-            filteredArticles: articles,
+            allArticles: articles,
             loading: false
           });
+          that.updateDisplay();
         } else {
           that.setData({ loading: false });
         }
@@ -49,6 +55,55 @@ Page({
         that.setData({ loading: false });
       }
     });
+  },
+
+  updateDisplay: function(targetPage) {
+    const { allArticles, searchQuery, pageSize } = this.data;
+    // 如果没有传入 targetPage，则使用当前的 currentPage
+    let page = targetPage !== undefined ? targetPage : this.data.currentPage;
+    
+    // 1. 筛选
+    const filtered = allArticles.filter(article => 
+      article.title.toLowerCase().indexOf(searchQuery) !== -1
+    );
+
+    // 2. 计算分页
+    const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+    
+    // 确保 page 有效
+    if (page > totalPages) page = totalPages;
+    if (page < 1) page = 1;
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const displayArticles = filtered.slice(start, end);
+
+    this.setData({
+      displayArticles: displayArticles,
+      totalPages: totalPages,
+      currentPage: page
+    });
+  },
+
+  prevPage: function() {
+    if (this.data.currentPage > 1) {
+      this.updateDisplay(this.data.currentPage - 1);
+      // 翻页后回到列表顶部
+      qq.pageScrollTo({
+        scrollTop: 0,
+        duration: 300
+      });
+    }
+  },
+
+  nextPage: function() {
+    if (this.data.currentPage < this.data.totalPages) {
+      this.updateDisplay(this.data.currentPage + 1);
+      qq.pageScrollTo({
+        scrollTop: 0,
+        duration: 300
+      });
+    }
   },
 
   parseRSSList: function(xml) {
@@ -97,32 +152,53 @@ Page({
 
   onSearchInput: function(e) {
     const query = e.detail.value.toLowerCase();
-    const filtered = this.data.articles.filter(article => 
-      article.title.toLowerCase().indexOf(query) !== -1
-    );
     this.setData({
-      searchQuery: query,
-      filteredArticles: filtered
+      searchQuery: query
+    }, () => {
+      this.updateDisplay(1);
     });
   },
 
   clearSearch: function() {
     this.setData({
-      searchQuery: "",
-      filteredArticles: this.data.articles
+      searchQuery: ""
+    }, () => {
+      this.updateDisplay(1);
     });
   },
 
   goToArticle: function(e) {
     const index = e.currentTarget.dataset.index;
-    const articleSummary = this.data.filteredArticles[index];
+    // 确保 index 是数字且有效
+    if (typeof index !== 'number' || index < 0 || index >= this.data.displayArticles.length) {
+      console.error('无效的索引：', index);
+      return;
+    }
+
+    const articleSummary = this.data.displayArticles[index];
     
-    if (!articleSummary) return;
+    if (!articleSummary) {
+      console.error('未找到文章摘要，索引：', index);
+      return;
+    }
+
+    console.log('跳转文章：', articleSummary.title, '链接：', articleSummary.link);
+
+    // 埋点统计
+    trackEvent('view_article', {
+      title: articleSummary.title,
+      link: articleSummary.link
+    });
 
     const content = this.extractArticleContent(articleSummary.link);
+    
+    if (!content) {
+      console.warn('文章内容为空，尝试使用描述或占位符');
+    }
+
     const fullArticle = {
       ...articleSummary,
-      content: content
+      content: content || "<p>暂无内容</p>" // 提供默认内容防止空白
     };
 
     const app = getApp();
@@ -130,9 +206,8 @@ Page({
       app.globalData.currentArticle = fullArticle;
     }
 
-    // 使用相对路径跳转，并增加错误处理
     qq.navigateTo({
-      url: '../article/article',
+      url: '/pages/article/article',
       fail: function(err) {
         console.error('跳转失败：', err);
         qq.showToast({
@@ -141,6 +216,23 @@ Page({
         });
       }
     });
+  },
+
+  copyLinkFromList: function(e) {
+    // 阻止冒泡，避免触发跳转
+    const index = e.currentTarget.dataset.index;
+    const article = this.data.displayArticles[index];
+    if (article && article.link) {
+      qq.setClipboardData({
+        data: article.link,
+        success: function() {
+          qq.showToast({
+            title: '链接已复制',
+            icon: 'success'
+          });
+        }
+      });
+    }
   },
 
   extractArticleContent: function(link) {

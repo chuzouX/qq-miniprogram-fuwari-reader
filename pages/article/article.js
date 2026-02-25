@@ -19,27 +19,32 @@ Page({
     });
     const article = app.globalData.currentArticle;
     if (article) {
+      let content = article.content || "";
+      
+      // Calculate reading stats
+      const { wordCount, readingTime } = this.calculateReadingStats(content);
+
       this.setData({
         article: {
           ...article,
           title: article.title || "",
           date: article.date || "",
           cover: article.cover || "",
-          link: article.link || ""
+          link: article.link || "",
+          wordCount,
+          readingTime
         }
       });
-      let content = article.content || "";
       
       // 1. 基础预处理
       content = this.decodeHtmlEntities(content);
       content = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-      content = this.addHeadingAnchors(content);
       
       // 2. 提取并保护代码块（最优先保护，防止后续正则干扰）
       const { content: contentWithPlaceholders, placeholders } = this.extractCodeBlocks(content);
       content = contentWithPlaceholders;
       this.codePlaceholders = placeholders;
-
+      
       // 3. 处理图片路径（在占位符状态下处理，确保不误伤代码中的图片链接）
       const blogBase = "https://chuzoux.top";
       content = content.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*\/?>/gi, (match, src) => {
@@ -57,6 +62,7 @@ Page({
       content = content.replace(/<table/gi, '<table class="md-table"');
 
       content = this.processFuwariTags(content);
+      content = this.addHeadingAnchors(content); // 移到 processFuwariTags 之后，extractCodeBlocks 之后
       content = this.convertLinks(content);
       
       // 保存处理后的内容（含占位符），以便主题切换时重新渲染数学公式
@@ -256,10 +262,13 @@ Page({
       
       const id = `__BLOCK_CODE_${placeholders.length}__`;
       const safeCode = this.formatCodeHtml(codeContent);
-      const rawCode = this.safeEncode(codeContent);
+      const rawCode = this.safeDecode(codeContent); // 应该存储解码后的原始内容
+      
       placeholders.push({
         id: id,
-        html: `<div class="md-pre"><span class="md-code">${safeCode}</span><span class="md-copy-btn" data-url="${rawCode}">复制</span></div>`
+        type: 'block',
+        codeHtml: `<span class="md-code">${safeCode}</span>`, // 保持结构
+        rawCode: rawCode
       });
       return id;
     });
@@ -269,6 +278,7 @@ Page({
       const safeCode = this.escapeHtml(inner);
       placeholders.push({
         id: id,
+        type: 'inline',
         html: `<span class="md-code-inline">${safeCode}</span>`
       });
       return id;
@@ -301,27 +311,46 @@ Page({
 
   addHeadingAnchors: function(html) {
     if (!html) return "";
+    
+    if (!this.headingPlaceholders) this.headingPlaceholders = [];
     const used = {};
+    
     return html.replace(/<h([1-6])([^>]*)>([\s\S]*?)<\/h\1>/gi, (match, level, attrs, inner) => {
       const hasId = /\sid=["']([^"']+)["']/.exec(attrs);
       const existingId = hasId ? hasId[1] : "";
+      
+      // 这里的 inner 可能包含代码块占位符，需要小心处理
+      // 暂时直接用 inner 计算 ID，假设占位符不影响 ID 的唯一性太大，或者占位符本身是稳定的
       const text = inner.replace(/<[^>]+>/g, "").trim();
       let anchorId = existingId || this.buildAnchorId(text);
+      
       if (!anchorId) {
         return match;
       }
+      
       const base = anchorId;
       let count = used[base] || 0;
       if (count > 0) {
         anchorId = `${base}-${count}`;
       }
       used[base] = count + 1;
-      const attrsWithId = existingId ? attrs : `${attrs} id="${anchorId}"`;
+      
+      // 生成 compactId (兼容旧逻辑)
       const compactId = anchorId.replace(/-(?=[\u4e00-\u9fff])/g, "");
-      const anchors = compactId && compactId !== anchorId
-        ? `<span id="${anchorId}"></span><span id="${compactId}"></span>`
-        : `<span id="${anchorId}"></span>`;
-      return `${anchors}<h${level}${attrsWithId}>${inner}</h${level}>`;
+      const finalCompactId = (compactId && compactId !== anchorId) ? compactId : null;
+      
+      // 创建占位符
+      const id = `__BLOCK_HEADING_${this.headingPlaceholders.length}__`;
+      this.headingPlaceholders.push({
+        id: id,
+        type: 'heading',
+        level: level,
+        anchorId: anchorId,
+        compactId: finalCompactId,
+        html: `<h${level}${attrs}>${inner}</h${level}>` // 保留原始 HTML 用于渲染
+      });
+      
+      return id;
     });
   },
 
@@ -339,8 +368,12 @@ Page({
 
   convertLinks: function(html) {
     if (!html) return "";
-    return html.replace(/<a\s+([^>]*?)href=["']([^"']+)["']([^>]*)>/gi, (match, before, href, after) => {
+    // 优化正则，支持属性间任意空白，捕获 href 值
+    return html.replace(/<a\s+([^>]*?)\bhref=["']([^"']*)["']([^>]*)>/gi, (match, before, href, after) => {
+      // 合并前后属性
       const attrs = `${before} ${after}`.replace(/\s+/g, " ").trim();
+      
+      // 处理 class
       const classMatch = attrs.match(/class=["']([^"']*)["']/i);
       let newAttrs = attrs;
       if (classMatch) {
@@ -349,9 +382,13 @@ Page({
       } else {
         newAttrs = `${newAttrs} class="md-link"`.trim();
       }
+      
+      // 确保 data-url 存在（虽然 bindlinktap 主要依赖 href，但保留以防万一）
       if (!/data-url=/i.test(newAttrs)) {
         newAttrs = `${newAttrs} data-url="${this.escapeHtml(href)}"`.trim();
       }
+      
+      // 重建标签，确保 href 存在且正确
       return `<a href="${href}" ${newAttrs}>`;
     });
   },
@@ -359,11 +396,22 @@ Page({
   processFuwariTags: function(html) {
     if (!html) return "";
     let result = html;
+    
+    // 初始化 githubPlaceholders
+    if (!this.githubPlaceholders) this.githubPlaceholders = [];
 
     result = result.replace(/::github\s*\{\s*repo\s*=\s*["']([^"']+)["']\s*\}/gi, (match, repo) => {
       const safeRepo = this.escapeHtml(repo.trim());
       const link = `https://github.com/${repo.trim()}`;
-      return `<div class="github-card"><div class="github-card-title">${safeRepo}</div><a class="github-card-link" href="${link}">${link}</a></div>`;
+      
+      const id = `__BLOCK_GITHUB_${this.githubPlaceholders.length}__`;
+      this.githubPlaceholders.push({
+        id: id,
+        type: 'github',
+        repo: safeRepo,
+        link: link
+      });
+      return id;
     });
 
     result = result.replace(/:::\s*(note|tip|important|warning|caution)(?:\[(.*?)\])?\s*([\s\S]*?):::/gi, (match, type, title, body) => {
@@ -392,10 +440,222 @@ Page({
     if (!html || !this.codePlaceholders) return html;
     let result = html;
     this.codePlaceholders.forEach(item => {
-      // 使用 split/join 避免正则替换中的 $ 符号问题
-      result = result.split(item.id).join(item.html);
+      // 只恢复内联代码，块级代码保留占位符
+      if (item.type === 'inline') {
+        result = result.split(item.id).join(item.html);
+      }
     });
     return result;
+  },
+
+  expandSegments: function(segments) {
+    if (!segments || segments.length === 0) return [];
+    
+    let result = [];
+    segments.forEach(seg => {
+      if (seg.type !== 'html') {
+        result.push(seg);
+        return;
+      }
+
+      // 处理 HTML 片段中的块级代码占位符、Github 卡片占位符、标题占位符、包含链接的段落以及列表
+      // 使用 split 保留分隔符，并处理可能的空字符串
+      // 注意：这里使用 [\s\S] 替代 . 以匹配包含换行的内容
+      const parts = seg.content.split(/(__BLOCK_CODE_\d+__|__BLOCK_GITHUB_\d+__|__BLOCK_HEADING_\d+__|<p[^>]*>[\s\S]*?<a[^>]*>[\s\S]*?<\/a>[\s\S]*?<\/p>|<[uo]l[^>]*>[\s\S]*?<\/[uo]l>)/gi);
+      
+      parts.forEach(part => {
+        if (!part) return;
+        
+        // 1. 代码块占位符
+        let match = part.match(/^__BLOCK_CODE_(\d+)__$/);
+        if (match) {
+          const index = parseInt(match[1]);
+          const placeholder = this.codePlaceholders[index];
+          if (placeholder && placeholder.type === 'block') {
+            result.push({
+              type: 'code',
+              codeHtml: placeholder.codeHtml,
+              rawCode: placeholder.rawCode
+            });
+            return;
+          }
+        }
+        
+        // 2. Github 卡片占位符
+        match = part.match(/^__BLOCK_GITHUB_(\d+)__$/);
+        if (match) {
+          const index = parseInt(match[1]);
+          if (this.githubPlaceholders && this.githubPlaceholders[index]) {
+            const github = this.githubPlaceholders[index];
+            result.push({
+              type: 'github',
+              repo: github.repo,
+              link: github.link
+            });
+            return;
+          }
+        }
+
+        // 3. 标题占位符
+        match = part.match(/^__BLOCK_HEADING_(\d+)__$/);
+        if (match) {
+          const index = parseInt(match[1]);
+          if (this.headingPlaceholders && this.headingPlaceholders[index]) {
+            const heading = this.headingPlaceholders[index];
+            // 标题内部可能包含内联代码占位符，需要恢复
+            const restoredHtml = this.restoreCodeBlocks(heading.html);
+            result.push({
+              type: 'heading',
+              html: restoredHtml,
+              anchorId: heading.anchorId,
+              compactId: heading.compactId
+            });
+            return;
+          }
+        }
+
+        // 4. 列表 (ul/ol) -> 转换为原生 list 结构
+        if (/^<[uo]l[^>]*>/i.test(part)) {
+          const listData = this.parseList(part);
+          if (listData) {
+            result.push(listData);
+            return;
+          }
+        }
+
+        // 5. 包含链接的段落 -> 转换为原生 text 节点
+        // 简单的检查是否是 <p> 包裹且包含 <a>
+        if (/^<p[^>]*>[\s\S]*<a[^>]*>[\s\S]*<\/a>[\s\S]*<\/p>$/i.test(part)) {
+          const innerMatch = part.match(/^<p[^>]*>([\s\S]*)<\/p>$/i);
+          if (innerMatch) {
+            const textNodes = this.parseTextNodes(innerMatch[1]);
+            if (textNodes && textNodes.length > 0) {
+              result.push({
+                type: 'p-text',
+                nodes: textNodes
+              });
+              return;
+            }
+          }
+        }
+        
+        // 6. 普通 HTML 内容（包括不含链接的段落等）
+        // 如果 part 只是空白字符，可以忽略（视情况而定，这里保留以防布局塌陷）
+        if (part.trim() || part.indexOf('&nbsp;') > -1) {
+           // 忽略未被解析的占位符，防止它们显示在页面上
+           if (/^__BLOCK_(HEADING|CODE|GITHUB)_\d+__$/.test(part.trim())) {
+             return;
+           }
+           result.push({ type: 'html', content: part });
+        }
+      });
+    });
+    
+    return result;
+  },
+
+  parseList: function(html) {
+    if (!html) return null;
+    
+    // 简单的列表解析器，不支持复杂嵌套
+    const tagMatch = html.match(/^<([uo]l)([^>]*)>/i);
+    const tag = tagMatch ? tagMatch[1].toLowerCase() : 'ul';
+    const attrs = tagMatch ? tagMatch[2] : '';
+    
+    // 获取有序列表起始序号
+    let start = 1;
+    if (tag === 'ol') {
+      const startMatch = attrs.match(/start=["']?(\d+)["']?/i);
+      if (startMatch) {
+        start = parseInt(startMatch[1], 10);
+      }
+    }
+
+    const items = [];
+    
+    // 提取 li 内容
+    const liReg = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+    let match;
+    while ((match = liReg.exec(html)) !== null) {
+      // 这里的 content 可能包含内联代码占位符，需要先恢复
+      // 但 parseTextNodes 本身不支持占位符，所以我们需要先恢复内联代码
+      let content = match[1];
+      content = this.restoreCodeBlocks(content);
+      
+      items.push({
+        nodes: this.parseTextNodes(content)
+      });
+    }
+    
+    if (items.length > 0) {
+      return {
+        type: 'list',
+        tag: tag,
+        start: start,
+        items: items
+      };
+    }
+    return null;
+  },
+
+  parseTextNodes: function(html) {
+    if (!html) return [];
+    
+    // 简单的标签解析器，支持 a, strong, b, em, i, code, br
+    // 将 HTML 字符串解析为节点数组
+    const nodes = [];
+    const tagReg = /<(\/?)(\w+)([^>]*)>|([^<]+)/g;
+    let match;
+    let currentStyle = {
+      bold: false,
+      italic: false,
+      code: false,
+      link: null // { href: '' }
+    };
+    
+    // 辅助栈，用于处理嵌套（简单处理，不支持复杂嵌套恢复）
+    // 实际上由于小程序 text 嵌套支持有限，这里采用扁平化策略：
+    // 每段文本都带有当前的所有样式状态
+    
+    while ((match = tagReg.exec(html)) !== null) {
+      if (match[4]) {
+        // 文本节点
+        const text = this.decodeHtmlEntities(match[4]);
+        nodes.push({
+          type: 'text',
+          text: text,
+          ...currentStyle
+        });
+      } else {
+        // 标签节点
+        const isClose = match[1] === '/';
+        const tagName = match[2].toLowerCase();
+        const attrs = match[3];
+        
+        if (tagName === 'br') {
+          nodes.push({ type: 'br' });
+          continue;
+        }
+        
+        if (tagName === 'strong' || tagName === 'b') {
+          currentStyle.bold = !isClose;
+        } else if (tagName === 'em' || tagName === 'i') {
+          currentStyle.italic = !isClose;
+        } else if (tagName === 'code') {
+          currentStyle.code = !isClose;
+        } else if (tagName === 'a') {
+          if (!isClose) {
+            const hrefMatch = attrs.match(/href=["']([^"']*)["']/i);
+            currentStyle.link = hrefMatch ? { href: hrefMatch[1] } : null;
+          } else {
+            currentStyle.link = null;
+          }
+        }
+        // 忽略 span 等其他标签，但保留内容
+      }
+    }
+    
+    return nodes;
   },
 
   renderFullContent: function(isDark) {
@@ -403,17 +663,32 @@ Page({
     const contentWithMath = this.renderMath(this.processedHtmlWithPlaceholders, isDark);
     const segments = this.parseSegments(contentWithMath);
     
-    // 在每个 HTML 段落中还原代码块
-    const restoredSegments = segments.map(seg => {
+    // 在每个 HTML 段落中还原内联代码块，保留块级代码占位符
+    const partiallyRestoredSegments = segments.map(seg => {
       if (seg.type === 'html') {
         return { ...seg, content: this.restoreCodeBlocks(seg.content) };
       }
       return seg;
     });
 
+    // 展开块级代码和 Github 卡片为独立 segment
+    const finalSegments = this.expandSegments(partiallyRestoredSegments);
+
     this.setData({
-      'article.segments': restoredSegments
+      'article.segments': finalSegments
     });
+  },
+
+  copyCode: function(e) {
+    const code = e.currentTarget.dataset.code;
+    if (code) {
+      this.copyText(code);
+    }
+  },
+
+  handleTextLinkTap: function(e) {
+    const href = e.currentTarget.dataset.code;
+    this.handleHref(href);
   },
 
   renderMath: function(html, isDark) {
@@ -439,6 +714,20 @@ Page({
     });
 
     return tempHtml;
+  },
+
+  calculateReadingStats: function(html) {
+    if (!html) return { wordCount: 0, readingTime: 0 };
+    
+    // Remove HTML tags and extra whitespace
+    const plainText = html.replace(/<[^>]+>/g, "").replace(/\s+/g, "");
+    const wordCount = plainText.length;
+    
+    // Average reading speed: 400 chars/min
+    if (wordCount === 0) return { wordCount: 0, readingTime: 0 };
+    const readingTime = Math.ceil(wordCount / 400) || 1;
+    
+    return { wordCount, readingTime };
   },
 
   decodeHtmlEntities: function(str) {
